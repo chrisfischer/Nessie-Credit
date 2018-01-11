@@ -28,6 +28,7 @@ DEBUG = False
 ALLOWED_HOSTS = ['*']
 
 CSRF_COOKIE_SECURE = False
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 
