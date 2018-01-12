@@ -19,6 +19,7 @@ def api(request):
     elif request.method == 'POST':
         p = dict(request.POST)
         if p:
+            print(p)
             results = parse_post(p)
 
     if results:
