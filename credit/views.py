@@ -20,6 +20,10 @@ def api(request):
         p = dict(request.POST)
         if p:
             results = parse_post(p)
-    return JsonResponse(results, safe=False)
 
+    if results:
+        return JsonResponse(results, safe=False)
+    else:
+        print("Malformed")
+        return None
 
