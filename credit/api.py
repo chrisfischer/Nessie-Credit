@@ -106,7 +106,7 @@ def parse_post(o):
     try:
         new_purchase = {
             'date': o['date'][0],
-            'price': o['price'][0],
+            'price': float(o['price'][0]),
             'vendor': o['vendor'][0],
         }
 
