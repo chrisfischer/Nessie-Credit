@@ -78,12 +78,22 @@ def parse_get(o):
         return toReturn
 
     if (field == 'realMonthlyCostLoss'):
-        month = o['month'][0]
-        return monthly_sum(db, 'purchase-history', month)
+        toReturn = []
+        for i in range(1, 13):
+            avg = get_average_payment(db)
+            month = '2017-' + str(i).zfill(2)
+            sum = monthly_sum(db, 'purchase-history', month, avg)
+            toReturn.append({ 'date': month, 'values': sum})
+        return toReturn
 
     if (field == 'realMonthlyCostGain'):
-        month = o['month'][0]
-        return monthly_sum(db, 'skipped-history', month)
+        toReturn = []
+        for i in range(1, 13):
+            avg = get_average_payment(db)
+            month = '2017-' + str(i).zfill(2)
+            sum = monthly_sum(db, 'skipped-history', month, avg)
+            toReturn.append({ 'date': month, 'values': sum})
+        return toReturn
       
     if (field == 'realCost'):
         price = o['price'][0]
@@ -114,7 +124,7 @@ def individual_cost(db, price, time_reference):
         'interestCost': interest_cost 
         }
 
-def monthly_sum(db, key, month):
+def monthly_sum(db, key, month, average_payment):
     previous_month = get_previous_month(month + '-01')
     payments = db[key]
     cursor = payments.find()
@@ -127,7 +137,7 @@ def monthly_sum(db, key, month):
          "stockData": "swppx.csv",
          "balance": get_months_balance(db, previous_month),
          "interest": "18",
-         "payment": get_average_payment(db) * purchase_sum,
+         "payment": average_payment * purchase_sum,
          "currentDate": previous_month,
          "purchaseDate": month + "-01",
          "itemCost": purchase_sum
@@ -139,7 +149,7 @@ def monthly_sum(db, key, month):
     return { 
         'dollarCost' : round(purchase_sum, 2), 
         'realCost': real_cost 
-        }
+    }
 
 def get_current_balance(db):
     balances = db['balance-history']
@@ -190,13 +200,13 @@ def get_previous_month(s):
     year = s[:4]
     month = s[5:7]
     day = s[8:]
+    print (month)
     if month == '01':
         month = '12'
         year = str(int(year) - 1)
-    else:
-        print (month)
+    else: 
         month = str(int(month) - 1).zfill(2)
-        print (month)
+    print (month)
     return year + '-' + month + '-' + day
 
 def parse_post(o):

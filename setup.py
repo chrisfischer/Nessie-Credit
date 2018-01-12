@@ -58,13 +58,13 @@ for post in cursor:
     print(post)
 '''
 
-purchases = db['skipped-history']
-for month in range(1, 13):
+purchases = db['purchase-history']
+for month in range(12, 13):
   for i in range(1, 9):
     price = random.randint(1000,7000) / 100.00
 
     purchases.insert({
-      'date': '2017-' + str(month).zfill(2) + '-' + str(i),
+      'date': '2016-' + str(month).zfill(2) + '-' + str(i),
       'vendor': 'VENDOR',
       'price': price
       })
