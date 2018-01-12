@@ -19,6 +19,9 @@ from .values import *
 from bson.json_util import dumps
 from pymongo import MongoClient, DESCENDING
 
+import requests
+import json
+
 def parse_get(o):
     key = o['key'][0]
     if key != apiKey:
@@ -43,28 +46,10 @@ def parse_get(o):
         return list(cursor)[0]['balance']
 
     if (field == 'balanceHistory'):
-        balances = db['balance-history']
-        cursor = balances.find({}, { "_id": False})
-        toReturn = {}
-        for d in cursor:
-            toReturn[d['date']] = d['balance']
-        l = sorted(toReturn.items(), key=operator.itemgetter(0))
-        d = OrderedDict()
-        for t in l:
-            d[t[0]] = t[1]
-        return d
+        return get_sorted_balance_history(db)
 
     if (field == 'paymentHistory'):
-        payments = db['payment-history']
-        cursor = payments.find({}, { "_id": False})
-        toReturn = {}
-        for d in cursor:
-            toReturn[d['date']] = d['payment']
-        l = sorted(toReturn.items(), key=operator.itemgetter(0))
-        d = OrderedDict()
-        for t in l:
-            d[t[0]] = t[1]
-        return d
+        return get_sorted_payment_history(db)
 
     if (field == 'purchaseHistory'):
         payments = db['purchase-history']
@@ -93,7 +78,116 @@ def parse_get(o):
             })
         toReturn.sort(key=lambda d: d['date'], reverse=True)
         return toReturn
-        
+
+    if (field == 'realMonthlyCostLoss'):
+        month = o['month'][0]
+        return monthly_sum(db, 'purchase-history', month)
+
+    if (field == 'realMonthlyCostGain'):
+        month = o['month'][0]
+        return monthly_sum(db, 'skipped-history', month)
+      
+    if (field == 'realCost'):
+        value = o['value'][0]
+        return individual_cost(db, value)
+
+def individual_cost(db, value):
+    data = {
+        "cost":50,
+        "timeReference":30,
+        "determinantFundData":"vfinx.csv",
+        "balance": "200",
+        "interest": "18",
+        "payment": "20"
+    }
+    r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/actualRealCost1', data=json.dumps(data), headers={'Content-type': 'application/json'})
+    op_cost = r.json()['opportunityCost']
+    real_cost = op_cost['realCost']
+    investment_return = op_cost['investmentReturn']
+    intrest_cost = op_cost['interest']
+
+    return { 
+        'dollarCost': purchase_sum, 
+        'realCost': real_cost, 
+        'investmentReturn': investment_return, 
+        'intrestCost': intrest_cost 
+        }
+
+def monthly_sum(db, key, month):
+    previous_month = get_previous_month(month + '-01')
+    payments = db[key]
+    cursor = payments.find()
+    purchase_sum = 0.0
+    for d in cursor:
+        if d['date'][:7] == month:
+            purchase_sum += float(d['price'])
+
+    data = {
+         "stockData": "swppx.csv",
+         "balance": get_months_balance(db, previous_month),
+         "interest": "18",
+         "payment": get_average_payment(db) * purchase_sum,
+         "currentDate": previous_month,
+         "purchaseDate": month + "-01",
+         "itemCost": purchase_sum
+        }
+
+    r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/actualRealCost1', data=json.dumps(data), headers={'Content-type': 'application/json'})
+    print(r.json())
+    real_cost = r.json()['opportunityCost']['realCost']
+    return { 'dollarCost' : purchase_sum, 'realCost': real_cost }
+
+
+def get_months_balance(db, date):
+    month = date[:7]
+    balances = db['balance-history']
+    cursor = balances.find({'date': month})
+    return list(cursor)[0]['balance']
+
+def get_average_payment(db):
+    b = get_sorted_balance_history(db)
+    p = get_sorted_payment_history(db)
+    difference_sum = 0.0
+    count = 0
+    for (date1, balance), (date2, payment) in zip(b.items(), p.items()):
+        difference_sum += ((balance - payment)/balance)
+        count += 1
+    return difference_sum/count
+
+def get_sorted_balance_history(db):
+    balances = db['balance-history']
+    cursor = balances.find({}, { "_id": False})
+    toReturn = {}
+    for d in cursor:
+        toReturn[d['date']] = d['balance']
+    l = sorted(toReturn.items(), key=operator.itemgetter(0))
+    d = OrderedDict()
+    for t in l:
+        d[t[0]] = t[1]
+    return d
+
+def get_sorted_payment_history(db):
+    payments = db['payment-history']
+    cursor = payments.find({}, { "_id": False})
+    toReturn = {}
+    for d in cursor:
+        toReturn[d['date']] = d['payment']
+    l = sorted(toReturn.items(), key=operator.itemgetter(0))
+    d = OrderedDict()
+    for t in l:
+        d[t[0]] = t[1]
+    return d
+
+def get_previous_month(s):
+    year = s[:4]
+    month = s[5:7]
+    day = s[8:]
+    if month == '01':
+        month = '12'
+        year = str(int(year) - 1)
+    else:
+        month = str(int(month) - 1)
+    return year + '-' + month + '-' + day
 
 def parse_post(o):
     key = o['key'][0]

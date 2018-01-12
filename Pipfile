@@ -17,6 +17,7 @@ gunicorn = "*"
 pymongo = "*"
 pytz = "*"
 django-cors-headers = "*"
+requests = "*"
 
 
 [dev-packages]
