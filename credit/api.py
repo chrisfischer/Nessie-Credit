@@ -21,6 +21,7 @@ from pymongo import MongoClient, DESCENDING
 
 import requests
 import json
+import re
 
 def parse_get(o):
     key = o['key'][0]
@@ -127,22 +128,21 @@ def individual_cost(db, price, time_reference):
 def monthly_sum(db, key, month, average_payment):
     previous_month = get_previous_month(month + '-01')
     payments = db[key]
-    cursor = payments.find()
+    r = re.compile(r'' + month, re.I)
+    cursor = payments.find({'date': {'$regex': r}})
     purchase_sum = 0.0
     for d in cursor:
-        if d['date'][:7] == month:
-            purchase_sum += float(d['price'])
+        purchase_sum += float(d['price'])
 
     data = {
          "stockData": "swppx.csv",
          "balance": get_months_balance(db, previous_month),
          "interest": "18",
          "payment": average_payment * purchase_sum,
-         "currentDate": previous_month,
-         "purchaseDate": month + "-01",
+         "currentDate": month + "-01",
+         "purchaseDate": previous_month,
          "itemCost": purchase_sum
         }
-
     r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/actualRealCost1', data=json.dumps(data), headers={'Content-type': 'application/json'})
     print(r.json())
     real_cost = r.json()['opportunityCost']['realCost']
@@ -200,13 +200,11 @@ def get_previous_month(s):
     year = s[:4]
     month = s[5:7]
     day = s[8:]
-    print (month)
     if month == '01':
         month = '12'
         year = str(int(year) - 1)
     else: 
         month = str(int(month) - 1).zfill(2)
-    print (month)
     return year + '-' + month + '-' + day
 
 def parse_post(o):
