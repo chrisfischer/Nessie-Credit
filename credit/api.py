@@ -41,9 +41,7 @@ def parse_get(o):
 
     # return list of numerical fields
     if (field == 'currentBalance'):
-        balances = db['balance-history']
-        cursor = balances.find({}, {'balance': True, '_id': False}).sort([('date', DESCENDING)]).limit(1)
-        return list(cursor)[0]['balance']
+        return get_current_balance(db)
 
     if (field == 'balanceHistory'):
         return get_sorted_balance_history(db)
@@ -88,29 +86,32 @@ def parse_get(o):
         return monthly_sum(db, 'skipped-history', month)
       
     if (field == 'realCost'):
-        value = o['value'][0]
-        return individual_cost(db, value)
+        price = o['price'][0]
+        time_reference = o['time_reference'][0]
+        return individual_cost(db, price, time_reference)
 
-def individual_cost(db, value):
+def individual_cost(db, price, time_reference):
     data = {
-        "cost":50,
-        "timeReference":30,
+        "cost": price,
+        "timeReference": time_reference,
         "determinantFundData":"vfinx.csv",
-        "balance": "200",
+        "balance": get_current_balance(db),
         "interest": "18",
-        "payment": "20"
+        "payment": get_average_payment(db) * get_current_balance(db)
     }
-    r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/actualRealCost1', data=json.dumps(data), headers={'Content-type': 'application/json'})
+    print(data)
+    r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/findCostMarketInvestment1', data=json.dumps(data), headers={'Content-type': 'application/json'})
+    print(r.json())
     op_cost = r.json()['opportunityCost']
     real_cost = op_cost['realCost']
     investment_return = op_cost['investmentReturn']
-    intrest_cost = op_cost['interest']
+    interest_cost = op_cost['interest']
 
     return { 
-        'dollarCost': purchase_sum, 
+        'dollarCost': round(float(price), 2), 
         'realCost': real_cost, 
         'investmentReturn': investment_return, 
-        'intrestCost': intrest_cost 
+        'interestCost': interest_cost 
         }
 
 def monthly_sum(db, key, month):
@@ -135,8 +136,15 @@ def monthly_sum(db, key, month):
     r = requests.post('https://v2239ujovd.execute-api.us-east-1.amazonaws.com/prod/actualRealCost1', data=json.dumps(data), headers={'Content-type': 'application/json'})
     print(r.json())
     real_cost = r.json()['opportunityCost']['realCost']
-    return { 'dollarCost' : purchase_sum, 'realCost': real_cost }
+    return { 
+        'dollarCost' : round(purchase_sum, 2), 
+        'realCost': real_cost 
+        }
 
+def get_current_balance(db):
+    balances = db['balance-history']
+    cursor = balances.find({}, {'balance': True, '_id': False}).sort([('date', DESCENDING)]).limit(1)
+    return list(cursor)[0]['balance']
 
 def get_months_balance(db, date):
     month = date[:7]
@@ -186,7 +194,9 @@ def get_previous_month(s):
         month = '12'
         year = str(int(year) - 1)
     else:
-        month = str(int(month) - 1)
+        print (month)
+        month = str(int(month) - 1).zfill(2)
+        print (month)
     return year + '-' + month + '-' + day
 
 def parse_post(o):
