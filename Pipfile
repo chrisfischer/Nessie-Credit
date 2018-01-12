@@ -12,13 +12,16 @@ python_version = "3.6"
 
 [packages]
 
-django = "*"
+certifi = "*"
+chardet = "*"
+Django = "*"
+django-cors-header = "*"
 gunicorn = "*"
+idna = "*"
 pymongo = "*"
 pytz = "*"
-django-cors-headers = "*"
 requests = "*"
-
+urllib3 = "*"
 
 [dev-packages]
 
