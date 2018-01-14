@@ -57,7 +57,7 @@ cursor = payments.find()
 for post in cursor:
     print(post)
 '''
-
+'''
 purchases = db['purchase-history']
 for month in range(12, 13):
   for i in range(1, 9):
@@ -71,5 +71,4 @@ for month in range(12, 13):
 
 '''
 purchases = db['purchase-history']
-purchases.remove({'vendor':'VENDOR'})
-'''
+purchases.remove({'vendor':'AMAZON.COM'})
